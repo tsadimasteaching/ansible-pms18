@@ -1,0 +1,15 @@
+---
+azure-vms:
+  hosts:
+    pms18_1:
+      ansible_host: pms18_vm_01
+        # ansible_host: 51.13.178.194
+        # ansible_por: 22
+        # ansible_identities: /home/ansible/.ssh/id_rsa
+        # ansible_user: azureuser
+local-vms:
+  hosts:
+    localhost:
+      ansible_connection: local
+    local-vm-1:
+      ansible_host: default

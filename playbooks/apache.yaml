@@ -1,0 +1,70 @@
+---
+  - name: Install apache
+    hosts: azure-vms
+    become: yes
+    become_user: root
+
+    tasks:
+      - name: show facts
+        ansible.builtin.debug:
+          var: ansible_facts
+
+      - name: Install apache package
+        ansible.builtin.apt:
+          name: apache2
+          state: present
+          update_cache: yes
+        tags:
+          - install
+
+      - name: start apache2 service
+        ansible.builtin.service:
+          name: apache2
+          state: started
+          enabled: true
+        tags:
+          - install
+      
+      - name: create /var/www/demo directory
+        ansible.builtin.file:
+          path: /var/www/demo
+          state: directory
+          mode: 0755
+          owner: root
+          group: root
+
+      - name: copy index.html to /var/www/demo
+        ansible.builtin.copy:
+          src: ../files/index.html
+          dest: /var/www/demo/index.html
+          owner: root
+          group: root
+          mode: 0644
+
+      - name: copy demo.conf to /etc/apache2/sites-available
+        ansible.builtin.copy:
+          src: ../files/demo.conf
+          dest: /etc/apache2/sites-available/demo.conf
+          owner: root
+          group: root
+          mode: 0644
+
+      - name: disable default apache2 conf
+        ansible.builtin.file:
+          path: /etc/apache2/sites-enabled/000-default.conf
+          state: absent
+        notify: restart apache2
+
+      - name: enable demo.conf
+        ansible.builtin.file:
+          src: /etc/apache2/sites-available/demo.conf
+          dest: /etc/apache2/sites-enabled/demo.conf
+          state: link
+        notify: restart apache2
+    
+    handlers:
+       - name: restart apache2
+         ansible.builtin.service:
+           name: apache2
+           state: restarted
+           enabled: true
