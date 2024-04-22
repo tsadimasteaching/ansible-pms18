@@ -1,0 +1,64 @@
+---
+  - hosts: dbservers
+    become: yes
+    become_user: root
+
+    tasks:
+
+      - name: install postgres and client
+        apt:
+          name: ["postgresql", "postgresql-client", "python3-pip"]
+          state: present
+          update_cache: yes
+
+      - name: enable postgres service
+        service:
+          name: "postgresql"
+          state: started
+          enabled: yes
+
+      - name: install psycopg2 pip module
+        pip:
+          name: psycopg2-binary
+          state: present
+      
+      - name: create fastapi_db
+        postgresql_db: 
+          name: fastapi_db
+        become: yes
+        become_user: postgres
+
+      - name: create fastapi database user
+        postgresql_user:
+          name: fastapi_user
+          password: pass123
+        become: yes
+        become_user: postgres
+
+      - name: allow connection to db
+        lineinfile:
+          path: /etc/postgresql/14/main/postgresql.conf
+          regexp: '^#listen_addresses ='
+          line: "listen_addresses = '*'"
+          state: present
+        notify: restart postgres
+
+      - name: allow connections for fastapi_db
+        postgresql_pg_hba:
+          dest: /etc/postgresql/14/main/pg_hba.conf
+          contype: host
+          databases: all
+          source: 0.0.0.0/0
+          method: md5
+          users: all
+          create: true
+        notify: restart postgres
+
+    handlers:
+
+      - name: restart postgres
+        service:
+          name: postgresql
+          state: restarted
+
+      
