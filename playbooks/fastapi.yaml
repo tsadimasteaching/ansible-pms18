@@ -1,0 +1,58 @@
+---
+  - hosts: appservers
+
+    vars:
+      user_dir: "/home/vagrant"
+      app_dir: "{{ user_dir }}/fastapi-intro"
+      app: 
+        env:
+          DATABASE_URL: "postgresql://fastapi_user:pass123@dbserver/fastapi_db"
+
+    tasks:
+      
+      - name: clone fastapi repo 
+        git:
+          repo: https://github.com/tsadimasteaching/fastapi-intro.git
+          version: db-relations
+          clone: yes 
+          dest: "{{ app_dir }}"
+          force: yes
+
+      - name: copy .env.example to .env
+        shell: "cp {{ app_dir }}/.env.example {{ app_dir }}/.env"
+
+      - name: populate .env file
+        # vars:
+        #   app:
+        #     env:
+        #       DATABASE_URL: "TEST"
+        lineinfile:
+          path: "{{ app_dir }}/.env"
+          line: "{{ item.key }}={{ item.value}}"
+          regexp: "^{{item.key}}="
+          state: present
+        with_items:
+          - "{{app.env | dict2items}}"
+          
+          
+      - name: install and activate virtualenv
+        block:
+          - name: activate virtualenv and install reqs
+            pip: 
+              virtualenv: "{{ app_dir }}/favenv"
+              requirements: "{{ app_dir }}/requirements.txt"
+        rescue:
+          - name: install required python packages
+            apt:
+              name: ["python3-virtualenv","virtualenv"]
+              state: present
+              update_cache: yes
+            become: yes
+            become_user: root
+        always:
+          - name: activate virtualenv and install reqs
+            pip: 
+              virtualenv: "{{ app_dir }}/favenv"
+              requirements: "{{ app_dir }}/requirements.txt"
+      
+      - name: 
