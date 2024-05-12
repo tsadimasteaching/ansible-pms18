@@ -13,3 +13,15 @@ local-vms:
       ansible_connection: local
     local-vm-1:
       ansible_host: default
+
+
+dbservers:
+  hosts:
+    dbserver-vm:
+      ansible_host: dbserver
+
+appservers:
+  hosts:
+    appserver-vm:
+      ansible_host: appserver
+      

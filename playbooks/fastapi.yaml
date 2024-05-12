@@ -1,0 +1,147 @@
+---
+- hosts: appservers
+
+  vars:
+    user_dir: "/home/vagrant"
+    app_dir: "{{user_dir}}/fastapi-intro"
+    git_repo_url: "https://github.com/tsadimasteaching/fastapi-intro.git"
+    git_repo_branch: "db-relations"
+
+  tasks:
+
+  - name: ensure github.com is a known host
+    lineinfile:
+      dest: "{{user_dir}}/.ssh/known_hosts"
+      create: yes
+      state: present
+      line: "{{lookup('pipe', 'ssh-keyscan -t rsa github.com')}}"
+      regexp: "^github\\.com"
+
+  - name: clone fastapi project
+    git:
+      repo: "{{git_repo_url}}"
+      version: "{{git_repo_branch}}"
+      clone: yes
+      #force: yes
+      dest: "{{app_dir}}"
+    changed_when: true
+
+  - name: copy env file
+    shell : "cp {{app_dir}}/.env.example {{app_dir}}/.env"
+
+  - name: populate  ~/.env
+    lineinfile:
+      dest: "{{app_dir}}/.env"
+      state: present
+      regexp: "^{{item.key}}="
+      line: "{{item.key}}='{{item.value}}'"
+    with_items:
+      - "{{app.env | dict2items}}"
+
+
+
+  - name: install and activate virtual environment
+    block:
+    - name: setup virtual environment
+      pip:
+        requirements: "{{app_dir}}/requirements.txt"
+        virtualenv: "{{app_dir}}/favenv"
+        virtualenv_python: python3
+        state: forcereinstall
+    rescue:
+    - name: "APT - install misc packages"
+      apt:
+        name: [python3, python3-pip, python3-virtualenv, virtualenv, libpq-dev]
+        update_cache: yes
+      become: yes
+      become_user: root
+      when: hostvars[inventory_hostname].ansible_distribution == 'Ubuntu'
+    always:
+
+    - name: setup virtual environment
+      pip:
+        requirements: "{{app_dir}}/requirements.txt"
+        virtualenv: "{{app_dir}}/favenv"
+        virtualenv_python: python3
+        state: forcereinstall
+
+    - name: copy fastapi service file
+      template:
+        src: ../files/uvicorn.service.j2
+        dest: "/etc/systemd/system/uvicorn.service"
+      become: yes
+      become_user: root
+      notify: restart uvicorn
+
+    - name: ensure uvicorn service started
+      service:
+        name: uvicorn
+        state: started
+        enabled: yes
+      become: yes
+
+  - name: install and configure nginx
+    block:
+
+    - name: "APT - install nginx"
+      apt:
+        name: nginx
+        update_cache: yes
+
+    - name: copy nginx conf file
+      template:
+        src: ../files/nginx/demo.nginx.j2
+        dest: "/etc/nginx/sites-available/fastapi"
+
+    - name: copy nginx https conf file
+      template:
+        src: ../files/nginx/demo.https.nginx.j2
+        dest: "/etc/nginx/sites-available/fastapissl"
+
+
+    - name: copy certificates
+      copy:
+        src: "{{item}}"
+        dest: /etc/ssl/private/
+      with_items:
+        - ../files/certs/server.crt
+        - ../files/certs/server.key
+
+
+    - name: enable fastapi site in nginx
+      file:
+        src: "/etc/nginx/sites-available/fastapi"
+        dest: "/etc/nginx/sites-enabled/fastapi"
+        state: link
+      notify: restart nginx
+
+    - name: enable fastapissl site in nginx
+      file:
+        src: "/etc/nginx/sites-available/fastapissl"
+        dest: "/etc/nginx/sites-enabled/fastapissl"
+        state: link
+      notify: restart nginx
+
+    - name: de-activate default nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+    become: yes
+    become_user: root
+
+
+  handlers:
+
+  - name: restart nginx
+    service:
+      name: nginx
+      state: restarted
+    become: yes
+
+  - name: restart uvicorn
+    service:
+      name: uvicorn
+      state: restarted
+    become: yes

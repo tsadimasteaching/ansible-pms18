@@ -1,0 +1,7 @@
+app:
+  env:
+    DATABASE_URL: 'postgresql://appuser:apppassword@dbserver:5432/appdb'
+
+service:
+  workingdir: "{{app_dir}}"
+  execstart: "{{app_dir}}/favenv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
