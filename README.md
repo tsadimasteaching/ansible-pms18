@@ -84,6 +84,7 @@ ansible-playbook -l <hostname> playbooks/hostvars_and_facts.yml
 ```
 ## Create self-signed certificates
 ```bash
+mkdir -p files/certs
 cd files/certs
 openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 --nodes -subj '/C=GR/O=myorganization/OU=it/CN=myorg.com'
 ```

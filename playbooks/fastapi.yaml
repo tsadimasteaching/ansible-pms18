@@ -94,19 +94,19 @@
         src: ../files/nginx/demo.nginx.j2
         dest: "/etc/nginx/sites-available/fastapi"
 
-    # - name: copy nginx https conf file
-    #   template:
-    #     src: ../files/nginx/demo.https.nginx.j2
-    #     dest: "/etc/nginx/sites-available/fastapissl"
+    - name: copy nginx https conf file
+      template:
+        src: ../files/nginx/demo.https.nginx.j2
+        dest: "/etc/nginx/sites-available/fastapissl"
 
 
-    # - name: copy certificates
-    #   copy:
-    #     src: "{{item}}"
-    #     dest: /etc/ssl/private/
-    #   with_items:
-    #     - ../files/certs/server.crt
-    #     - ../files/certs/server.key
+    - name: copy certificates
+      copy:
+        src: "{{item}}"
+        dest: /etc/ssl/private/
+      with_items:
+        - ../files/certs/server.crt
+        - ../files/certs/server.key
 
 
     - name: enable fastapi site in nginx
@@ -116,12 +116,12 @@
         state: link
       notify: restart nginx
 
-    # - name: enable fastapissl site in nginx
-    #   file:
-    #     src: "/etc/nginx/sites-available/fastapissl"
-    #     dest: "/etc/nginx/sites-enabled/fastapissl"
-    #     state: link
-    #   notify: restart nginx
+    - name: enable fastapissl site in nginx
+      file:
+        src: "/etc/nginx/sites-available/fastapissl"
+        dest: "/etc/nginx/sites-enabled/fastapissl"
+        state: link
+      notify: restart nginx
 
     - name: de-activate default nginx site
       file:
